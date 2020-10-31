@@ -7,6 +7,8 @@ import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 
+import com.pichillilorenzo.flutter_inappwebview.InAppBrowser.InAppBrowserActivity;
+import com.pichillilorenzo.flutter_inappwebview.InAppWebView.FlutterWebView;
 import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebView;
 
 import java.util.HashMap;
@@ -43,7 +45,30 @@ public class JavaScriptBridgeInterface {
   }
 
   @JavascriptInterface
+  public void _hideContextMenu() {
+    if (flutterWebView == null && inAppBrowserActivity == null) {
+      return;
+    }
+
+    final InAppWebView webView = (inAppBrowserActivity != null) ? inAppBrowserActivity.webView : flutterWebView.webView;
+
+    final Handler handler = new Handler(Looper.getMainLooper());
+    handler.post(new Runnable() {
+      @Override
+      public void run() {
+        if (webView != null && webView.floatingContextMenu != null) {
+          webView.hideContextMenu();
+        }
+      }
+    });
+  }
+
+  @JavascriptInterface
   public void _callHandler(final String handlerName, final String _callHandlerID, final String args) {
+    if (flutterWebView == null && inAppBrowserActivity == null) {
+      return;
+    }
+
     final InAppWebView webView = (inAppBrowserActivity != null) ? inAppBrowserActivity.webView : flutterWebView.webView;
 
     final Map<String, Object> obj = new HashMap<>();
@@ -90,5 +115,15 @@ public class JavaScriptBridgeInterface {
         });
       }
     });
+  }
+
+  public void dispose() {
+    channel.setMethodCallHandler(null);
+    if (inAppBrowserActivity != null) {
+      inAppBrowserActivity = null;
+    }
+    if (flutterWebView != null) {
+      flutterWebView = null;
+    }
   }
 }

@@ -1,3 +1,145 @@
+## 5.0.0
+
+- Added Android Hybrid Composition support "Use PlatformViewLink widget for Android WebView" [#462](https://github.com/pichillilorenzo/flutter_inappwebview/pull/462) (thanks to [plateaukao](https://github.com/plateaukao) and [tneotia](https://github.com/tneotia))
+- Merge "Upgraded appcompat to 1.2.0-rc-02" [#465](https://github.com/pichillilorenzo/flutter_inappwebview/pull/465) (thanks to [andreidiaconu](https://github.com/andreidiaconu))
+- Merge "Added missing field 'headers' which returned by WebResourceResponse.toMap()" [#490](https://github.com/pichillilorenzo/flutter_inappwebview/pull/490) (thanks to [Doflatango](https://github.com/Doflatango))
+- Merge "Fix: added iOS fallback module import" [#466](https://github.com/pichillilorenzo/flutter_inappwebview/pull/466) (thanks to [Eddayy](https://github.com/Eddayy))
+- Merge "Fix NullPointerException after taking a photo by a camera app on Android" [#492](https://github.com/pichillilorenzo/flutter_inappwebview/pull/492) (thanks to [AAkira](https://github.com/AAkira))
+- Fixed "Issue in Flutter web: 'Unsupported operation: Platform._operatingSystem'" [#507](https://github.com/pichillilorenzo/flutter_inappwebview/issues/507)
+- Fixed "window.flutter_inappwebview.callHandler is not a function" [#218](https://github.com/pichillilorenzo/flutter_inappwebview/issues/218)
+- Fixed "Android ContentBlocker - java.lang.NullPointerException ContentBlockerTrigger resource type" [#506](https://github.com/pichillilorenzo/flutter_inappwebview/issues/506)
+- Fixed "Android CookieManager throws error caused by websites that are sending back illegal/invalid cookies." [#476](https://github.com/pichillilorenzo/flutter_inappwebview/issues/476)
+- Fixed missing `clearHistory` webview method implementation on Android
+- Fixed iOS crash when using CookieManager getCookies for an URL and the host URL is `null`
+
+## 4.0.0+4
+
+- Reverted calling `handler.post` on Android when a WebView is created
+- Fixed iOS extra bottom padding when opening the keyboard
+- Fixed "Build for web not working – The integer literal 9223372036854775807 can't be represented exactly in JavaScript" [#429](https://github.com/pichillilorenzo/flutter_inappwebview/issues/429)
+- Fixed iOS userContentController didReceive WKScriptMessage event when using a WebView created with a `windowId`
+
+## 4.0.0
+
+- Updated `onCreateWindow`, `onJsAlert`, `onJsConfirm`, `onJsPrompt` webview events
+- Added `onCloseWindow`, `onTitleChanged`, `onWindowFocus`, `onWindowBlur` webview events
+- Added `androidOnRequestFocus`, `androidOnReceivedIcon`, `androidOnReceivedTouchIconUrl`, `androidOnJsBeforeUnload`, `androidOnReceivedLoginRequest` Android-specific webview events
+- Added `disableDefaultErrorPage` Android-specific webview option
+- Added `isAvailable` ChromeSafariBrowser static method
+- Fixed "SFSafariViewController doesn't open like a native iOS modal" [#403](https://github.com/pichillilorenzo/flutter_inappwebview/issues/403)
+
+### BREAKING CHANGES
+
+- Updated `onCreateWindow`, `onJsAlert`, `onJsConfirm`, `onJsPrompt` webview event
+- Renamed `OnCreateWindowRequest` class to `CreateWindowRequest`
+
+## 3.4.0+2
+
+- Reverted default `InAppWebView.gestureRecognizers` value to null on Android
+
+## 3.4.0+1
+
+- Updated README.md
+- Updated missing docs
+- Fixed pub.dev Health suggestions and Analysis suggestions
+
+## 3.4.0
+
+- Added `requestFocusNodeHref`, `requestImageRef`, `getMetaTags`, `getMetaThemeColor`, `getScrollX`, `getScrollY`, `getCertificate` webview methods
+- Added `WebStorage`, `LocalStorage` and `SessionStorage` class to manage `window.localStorage` and `window.sessionStorage` JavaScript [Web Storage API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API)
+- Added `supportZoom` webview option also on iOS
+- Added `HttpOnly`, `SameSite` cookie options
+- Updated `Cookie` class
+- Added `animated` option to `scrollTo` and `scrollBy` webview methods
+- Added error and message to the `ServerTrustChallenge` class for iOS (class used by the `onReceivedServerTrustAuthRequest` event)
+- Added `contentInsetAdjustmentBehavior` webview iOS-specific option
+- Added `copy` methods for webview options class
+- Added `SslCertificate` class and `X509Certificate` class and parser
+- Added `values` property for all the custom Enums
+- Updated Android workaround to hide the Keyboard when the user click outside on something not focusable such as input or a textarea.
+- Fixed `zoomBy`, `setOptions` webview methods on Android
+- Fixed `databaseEnabled` android webview option default value to `true`
+- Fixed `verticalScrollBarEnabled` and `horizontalScrollBarEnabled` on Android
+- Fixed error caused by `pauseTimers` on iOS when the WebView has been disposed
+- Fixed `ignoresViewportScaleLimits`, `dataDetectorTypes`, `suppressesIncrementalRendering`, `selectionGranularity` iOS-specific option when used in `initialOptions`
+- Fixed `getFavicons` method
+- Fixed `HttpAuthCredentialDatabase.removeHttpAuthCredential` on Android
+- Fixed some cases where `takeScreenshot` was not working on Android
+- Fixed `After upgrade to Android embedding V2, still get Shared.activity is null / NullPointerException on android.content.Context.getResources()` [#390](https://github.com/pichillilorenzo/flutter_inappwebview/issues/390)
+
+### BREAKING CHANGES
+
+- `evaluateJavascript` webview method now returns `null` on iOS if the evaluated JavaScript source returns `null`
+- `getHtml` webview method now could return `null` if it was unable to get it.
+- Moved `supportZoom` webview option to cross-platform
+- `builtInZoomControls` android webview options changed default value to `true`
+- Updated `ServerTrustChallenge` class used by the `onReceivedServerTrustAuthRequest` event
+- The method `getOptions` could return null now
+- Updated `HttpAuthCredentialDatabase.getAllAuthCredentials` method return type
+
+## 3.3.0+3
+
+- Updated Android build.gradle version and some androidx properties
+- Fixed `Multiple sessions` [#371](https://github.com/pichillilorenzo/flutter_inappwebview/issues/371)
+- Fixed `incognito mode is broken swift` [#320](https://github.com/pichillilorenzo/flutter_inappwebview/issues/320)
+
+## 3.3.0
+
+- Updated API docs
+- Updated Android context menu workaround
+- Calling `onCreateContextMenu` event on iOS also when the context menu is disabled in order to have the same effect as Android
+- Added `options` attribute to `ContextMenu` class and created `ContextMenuOptions` class
+- Added Android keyboard workaround to hide the keyboard when clicking other HTML elements, losing the focus on the previous input
+- Added `onEnterFullscreen`, `onExitFullscreen` webview events [#275](https://github.com/pichillilorenzo/flutter_inappwebview/issues/275)
+- Added Android support to use camera on HTML inputs that requires it, such as `<input type="file" accept="image/*" capture>` [#353](https://github.com/pichillilorenzo/flutter_inappwebview/issues/353)
+- Added `overScrollMode`, `networkAvailable`, `scrollBarStyle`, `verticalScrollbarPosition`, `scrollBarDefaultDelayBeforeFade`, `scrollbarFadingEnabled`, `scrollBarFadeDuration`, `rendererPriorityPolicy`, `useShouldInterceptRequest`, `useOnRenderProcessGone` webview options on Android
+- Added `pageDown`, `pageUp`, `saveWebArchive`, `zoomIn`, `zoomOut`, `clearHistory` webview methods on Android
+- Added `getCurrentWebViewPackage` static webview method on Android
+- Added `setContextMenu`, `clearFocus` methods to webview controller
+- Added `onPageCommitVisible` webview event
+- Added `androidShouldInterceptRequest`, `androidOnRenderProcessUnresponsive`, `androidOnRenderProcessResponsive`, `androidOnRenderProcessGone`, `androidOnFormResubmission`, `androidOnScaleChanged` Android events
+- Added `toString()` method to various classes in order to have a better output instead of simply `Instance of ...`
+- Fixed `Print preview is not working? java.lang.IllegalStateException: Can print only from an activity` [#128](https://github.com/pichillilorenzo/flutter_inappwebview/issues/128)
+- Fixed `onJsAlert`, `onJsConfirm`, `onJsPrompt` for `InAppBrowser` on Android
+- Fixed `onActivityResult` for `InAppBrowser` on Android
+- Fixed `InAppBrowser.openWithSystemBrowser crash on iOS` [#358](https://github.com/pichillilorenzo/flutter_inappwebview/issues/358)
+- Fixed `Attempt to invoke virtual method 'java.util.Set java.util.HashMap.entrySet()' on a null object reference` [#367](https://github.com/pichillilorenzo/flutter_inappwebview/issues/367)
+- Fixed missing `allowsAirPlayForMediaPlayback` iOS webview options implementation
+
+### BREAKING CHANGES
+
+- Android `clearClientCertPreferences`, `getSafeBrowsingPrivacyPolicyUrl`, `setSafeBrowsingWhitelist` webview methods are static now
+- Removed iOS event `onDidCommit`; it has been renamed to `onPageCommitVisible` and made cross-platform
+- `contextMenu` webview attribute is `final` now
+
+## 3.2.0
+
+- Added `ContextMenu` and `ContextMenuItem` classes [#235](https://github.com/pichillilorenzo/flutter_inappwebview/issues/235)
+- Added `onCreateContextMenu`, `onHideContextMenu`, `onContextMenuActionItemClicked` context menu events
+- Added `contextMenu` to WebView
+- Added `disableContextMenu` WebView option
+- Added `getSelectedText`, `getHitTestResult` methods to WebView Controller
+- Fixed `Confirmation dialog (onbeforeunload) displayed after popped from webview page` [#337](https://github.com/pichillilorenzo/flutter_inappwebview/issues/337)
+- Fixed `CookieManager.setCookie` `expiresDate` option
+- Fixed `Scrolling not smooth on iOS` [#341](https://github.com/pichillilorenzo/flutter_inappwebview/issues/341)
+
+### BREAKING CHANGES
+
+- Renamed `LongPressHitTestResult` to `InAppWebViewHitTestResult`.
+- Renamed `LongPressHitTestResultType` to `InAppWebViewHitTestResultType`.
+
+## 3.1.0
+
+- Added `HeadlessInAppWebView` class to be able to use WebView in headless mode
+- Added `close`, `addMenuItem`, `addMenuItems` methods to `ChromeSafariBrowser`
+- Added `ChromeSafariBrowserMenuItem` class in order to create custom menu item for `ChromeSafariBrowser`
+- Fixed `InAppWebView.channel` null when used by `InAppBrowserActivity` on android
+- Fixed iOS presentationStyle affecting only dismiss animation [#305](https://github.com/pichillilorenzo/flutter_inappwebview/issues/305)
+
+### BREAKING CHANGES
+
+- Renamed `InAppWebViewWidgetOptions` to `InAppWebViewGroupOptions`.
+
 ## 3.0.0
 
 - Added `Promise` javascript [polyfill](https://github.com/tildeio/rsvp.js) for webviews that doesn't support it for `window.flutter_inappwebview.callHandler`

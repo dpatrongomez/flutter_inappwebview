@@ -1,17 +1,24 @@
 package com.pichillilorenzo.flutter_inappwebview;
 
 import android.content.res.AssetManager;
+import android.net.http.SslCertificate;
+import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.Parcelable;
 import android.util.Log;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -115,7 +122,7 @@ public class Util {
     }
   }
 
-  public static PrivateKeyAndCertificates loadPrivateKeyAndCertificate( String certificatePath, String certificatePassword, String keyStoreType) {
+  public static PrivateKeyAndCertificates loadPrivateKeyAndCertificate(String certificatePath, String certificatePassword, String keyStoreType) {
 
     PrivateKeyAndCertificates privateKeyAndCertificates = null;
 
@@ -200,5 +207,31 @@ public class Util {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * SslCertificate class does not has a public getter for the underlying
+   * X509Certificate, we can only do this by hack. This only works for andorid 4.0+
+   * https://groups.google.com/forum/#!topic/android-developers/eAPJ6b7mrmg
+   */
+  public static X509Certificate getX509CertFromSslCertHack(SslCertificate sslCert) {
+    X509Certificate x509Certificate = null;
+
+    Bundle bundle = SslCertificate.saveState(sslCert);
+    byte[] bytes = bundle.getByteArray("x509-certificate");
+
+    if (bytes == null) {
+      x509Certificate = null;
+    } else {
+      try {
+        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+        Certificate cert = certFactory.generateCertificate(new ByteArrayInputStream(bytes));
+        x509Certificate = (X509Certificate) cert;
+      } catch (CertificateException e) {
+        x509Certificate = null;
+      }
+    }
+
+    return x509Certificate;
   }
 }

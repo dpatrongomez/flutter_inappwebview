@@ -29,7 +29,7 @@ class InAppWebViewOnLoadResourceCustomSchemeTestState extends WidgetTestState {
                   child: InAppWebView(
                     initialFile: "test_assets/in_app_webview_on_load_resource_custom_scheme_test.html",
                     initialHeaders: {},
-                    initialOptions: InAppWebViewWidgetOptions(
+                    initialOptions: InAppWebViewGroupOptions(
                         crossPlatform: InAppWebViewOptions(
                           clearCache: true,
                           debuggingEnabled: true,
@@ -54,7 +54,7 @@ class InAppWebViewOnLoadResourceCustomSchemeTestState extends WidgetTestState {
                     onLoadResourceCustomScheme: (InAppWebViewController controller, String scheme, String url) async {
                       if (scheme == "my-special-custom-scheme") {
                         var bytes = await rootBundle.load("test_assets/" + url.replaceFirst("my-special-custom-scheme://", "", 0));
-                        var response = new CustomSchemeResponse(data: bytes.buffer.asUint8List(), contentType: "image/svg+xml", contentEnconding: "utf-8");
+                        var response = CustomSchemeResponse(data: bytes.buffer.asUint8List(), contentType: "image/svg+xml", contentEnconding: "utf-8");
                         return response;
                       }
                       return null;

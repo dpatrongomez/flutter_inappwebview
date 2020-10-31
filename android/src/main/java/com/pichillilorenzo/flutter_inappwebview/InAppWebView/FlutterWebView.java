@@ -1,30 +1,34 @@
-package com.pichillilorenzo.flutter_inappwebview;
+package com.pichillilorenzo.flutter_inappwebview.InAppWebView;
 
-import android.app.Activity;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
-import android.view.ContextThemeWrapper;
 import android.view.View;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import com.pichillilorenzo.flutter_inappwebview.InAppWebView.DisplayListenerProxy;
-import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebView;
-import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebViewOptions;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+
+import com.pichillilorenzo.flutter_inappwebview.Shared;
+import com.pichillilorenzo.flutter_inappwebview.Util;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+import io.flutter.embedding.android.FlutterView;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.plugin.platform.PlatformView;
 
 import static io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -32,12 +36,12 @@ import static io.flutter.plugin.common.MethodChannel.Result;
 
 public class FlutterWebView implements PlatformView, MethodCallHandler  {
 
-  static final String LOG_TAG = "FlutterWebView";
+  static final String LOG_TAG = "IAWFlutterWebView";
 
   public InAppWebView webView;
   public final MethodChannel channel;
 
-  public FlutterWebView(BinaryMessenger messenger, final Context context, int id, HashMap<String, Object> params, View containerView) {
+  public FlutterWebView(BinaryMessenger messenger, final Context context, Object id, HashMap<String, Object> params, View containerView) {
     channel = new MethodChannel(messenger, "com.pichillilorenzo/flutter_inappwebview_" + id);
     channel.setMethodCallHandler(this);
 
@@ -46,15 +50,29 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
     displayListenerProxy.onPreWebViewInitialization(displayManager);
 
     String initialUrl = (String) params.get("initialUrl");
-    String initialFile = (String) params.get("initialFile");
-    Map<String, String> initialData = (Map<String, String>) params.get("initialData");
-    Map<String, String> initialHeaders = (Map<String, String>) params.get("initialHeaders");
-    HashMap<String, Object> initialOptions = (HashMap<String, Object>) params.get("initialOptions");
+    final String initialFile = (String) params.get("initialFile");
+    final Map<String, String> initialData = (Map<String, String>) params.get("initialData");
+    final Map<String, String> initialHeaders = (Map<String, String>) params.get("initialHeaders");
+    Map<String, Object> initialOptions = (Map<String, Object>) params.get("initialOptions");
+    Map<String, Object> contextMenu = (Map<String, Object>) params.get("contextMenu");
+    Integer windowId = (Integer) params.get("windowId");
 
     InAppWebViewOptions options = new InAppWebViewOptions();
     options.parse(initialOptions);
 
-    webView = new InAppWebView(Shared.activity, this, id, options, containerView);
+    if (Shared.activity == null) {
+      Log.e(LOG_TAG, "\n\n\nERROR: Shared.activity is null!!!\n\n" +
+              "You need to upgrade your Flutter project to use the new Java Embedding API:\n\n" +
+              "- Take a look at the \"IMPORTANT Note for Android\" section here: https://github.com/pichillilorenzo/flutter_inappwebview#important-note-for-android\n" +
+              "- See the official wiki here: https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects\n\n\n");
+    }
+
+    // MutableContextWrapper mMutableContext = new MutableContextWrapper(Shared.activity);
+    // webView = new InAppWebView(mMutableContext, this, id, options, contextMenu, containerView);
+    // displayListenerProxy.onPostWebViewInitialization(displayManager);
+    // mMutableContext.setBaseContext(context);
+
+    webView = new InAppWebView(Shared.activity, this, id, windowId, options, contextMenu, containerView);
     displayListenerProxy.onPostWebViewInitialization(displayManager);
 
     // fix https://github.com/pichillilorenzo/flutter_inappwebview/issues/182
@@ -73,26 +91,41 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
 
     webView.prepare();
 
-    if (initialFile != null) {
-      try {
-        initialUrl = Util.getUrlAsset(initialFile);
-      } catch (IOException e) {
-        e.printStackTrace();
-        Log.e(LOG_TAG, initialFile + " asset file cannot be found!", e);
-        return;
+    if (windowId != null) {
+      Message resultMsg = InAppWebViewChromeClient.windowWebViewMessages.get(windowId);
+      if (resultMsg != null) {
+        ((WebView.WebViewTransport) resultMsg.obj).setWebView(webView);
+        resultMsg.sendToTarget();
+      }
+    } else {
+      if (initialFile != null) {
+        try {
+          initialUrl = Util.getUrlAsset(initialFile);
+        } catch (IOException e) {
+          e.printStackTrace();
+          Log.e(LOG_TAG, initialFile + " asset file cannot be found!", e);
+          return;
+        }
+      }
+
+      if (initialData != null) {
+        String data = initialData.get("data");
+        String mimeType = initialData.get("mimeType");
+        String encoding = initialData.get("encoding");
+        String baseUrl = initialData.get("baseUrl");
+        String historyUrl = initialData.get("historyUrl");
+        webView.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
+      }
+      else {
+        webView.loadUrl(initialUrl, initialHeaders);
       }
     }
 
-    if (initialData != null) {
-      String data = initialData.get("data");
-      String mimeType = initialData.get("mimeType");
-      String encoding = initialData.get("encoding");
-      String baseUrl = initialData.get("baseUrl");
-      String historyUrl = initialData.get("historyUrl");
-      webView.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
+    if (containerView == null && id instanceof String) {
+      Map<String, Object> obj = new HashMap<>();
+      obj.put("uuid", id);
+      channel.invokeMethod("onHeadlessWebViewCreated", obj);
     }
-    else
-      webView.loadUrl(initialUrl, initialHeaders);
   }
 
   @Override
@@ -233,24 +266,18 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
         result.success((webView != null) ? webView.getCopyBackForwardList() : null);
         break;
       case "startSafeBrowsing":
-        if (webView != null)
-          webView.startSafeBrowsing(result);
-        else
-          result.success(false);
-        break;
-      case "setSafeBrowsingWhitelist":
-        if (webView != null) {
-          List<String> hosts = (List<String>) call.argument("hosts");
-          webView.setSafeBrowsingWhitelist(hosts, result);
+        if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 &&
+                WebViewFeature.isFeatureSupported(WebViewFeature.START_SAFE_BROWSING)) {
+          WebViewCompat.startSafeBrowsing(webView.getContext(), new ValueCallback<Boolean>() {
+            @Override
+            public void onReceiveValue(Boolean success) {
+              result.success(success);
+            }
+          });
         }
-        else
+        else {
           result.success(false);
-        break;
-      case "getSafeBrowsingPrivacyPolicyUrl":
-        if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-          result.success(webView.getSafeBrowsingPrivacyPolicyUrl().toString());
-        } else
-          result.success(null);
+        }
         break;
       case "clearCache":
         if (webView != null)
@@ -261,18 +288,6 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
         if (webView != null)
           webView.clearSslPreferences();
         result.success(true);
-        break;
-      case "clearClientCertPreferences":
-        if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-          webView.clearClientCertPreferences(new Runnable() {
-            @Override
-            public void run() {
-              result.success(true);
-            }
-          });
-        } else {
-          result.success(false);
-        }
         break;
       case "findAllAsync":
         if (webView != null) {
@@ -302,7 +317,8 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
         if (webView != null) {
           Integer x = (Integer) call.argument("x");
           Integer y = (Integer) call.argument("y");
-          webView.scrollTo(x, y);
+          Boolean animated = (Boolean) call.argument("animated");
+          webView.scrollTo(x, y, animated);
         }
         result.success(true);
         break;
@@ -310,7 +326,8 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
         if (webView != null) {
           Integer x = (Integer) call.argument("x");
           Integer y = (Integer) call.argument("y");
-          webView.scrollBy(x, y);
+          Boolean animated = (Boolean) call.argument("animated");
+          webView.scrollBy(x, y, animated);
         }
         result.success(true);
         break;
@@ -359,8 +376,8 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
         break;
       case "zoomBy":
         if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-          Float zoomFactor = (Float) call.argument("zoomFactor");
-          webView.zoomBy(zoomFactor);
+          double zoomFactor = (double) call.argument("zoomFactor");
+          webView.zoomBy((float) zoomFactor);
           result.success(true);
         } else {
           result.success(false);
@@ -372,6 +389,128 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
       case "getScale":
         result.success((webView != null) ? webView.getUpdatedScale() : null);
         break;
+      case "getSelectedText":
+        if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+          webView.getSelectedText(result);
+        } else {
+          result.success(null);
+        }
+        break;
+      case "getHitTestResult":
+        if (webView != null) {
+          WebView.HitTestResult hitTestResult = webView.getHitTestResult();
+          Map<String, Object> obj = new HashMap<>();
+          obj.put("type", hitTestResult.getType());
+          obj.put("extra", hitTestResult.getExtra());
+          result.success(obj);
+        } else {
+          result.success(null);
+        }
+        break;
+      case "pageDown":
+        if (webView != null) {
+          boolean bottom = (boolean) call.argument("bottom");
+          result.success(webView.pageDown(bottom));
+        } else {
+          result.success(false);
+        }
+        break;
+      case "pageUp":
+        if (webView != null) {
+          boolean top = (boolean) call.argument("top");
+          result.success(webView.pageUp(top));
+        } else {
+          result.success(false);
+        }
+        break;
+      case "saveWebArchive":
+        if (webView != null) {
+          String basename = (String) call.argument("basename");
+          boolean autoname = (boolean) call.argument("autoname");
+          webView.saveWebArchive(basename, autoname, new ValueCallback<String>() {
+            @Override
+            public void onReceiveValue(String value) {
+              result.success(value);
+            }
+          });
+        } else {
+          result.success(null);
+        }
+        break;
+      case "zoomIn":
+        if (webView != null) {
+          result.success(webView.zoomIn());
+        } else {
+          result.success(false);
+        }
+        break;
+      case "zoomOut":
+        if (webView != null) {
+          result.success(webView.zoomOut());
+        } else {
+          result.success(false);
+        }
+        break;
+      case "clearFocus":
+        if (webView != null) {
+          webView.clearFocus();
+          result.success(true);
+        } else {
+          result.success(false);
+        }
+        break;
+      case "setContextMenu":
+        if (webView != null) {
+          Map<String, Object> contextMenu = (Map<String, Object>) call.argument("contextMenu");
+          webView.contextMenu = contextMenu;
+          result.success(true);
+        } else {
+          result.success(false);
+        }
+        break;
+      case "requestFocusNodeHref":
+        if (webView != null) {
+          result.success(webView.requestFocusNodeHref());
+        } else {
+          result.success(null);
+        }
+        break;
+      case "requestImageRef":
+        if (webView != null) {
+          result.success(webView.requestImageRef());
+        } else {
+          result.success(null);
+        }
+        break;
+      case "getScrollX":
+        if (webView != null) {
+          result.success(webView.getScrollX());
+        } else {
+          result.success(null);
+        }
+        break;
+      case "getScrollY":
+        if (webView != null) {
+          result.success(webView.getScrollY());
+        } else {
+          result.success(null);
+        }
+        break;
+      case "getCertificate":
+        if (webView != null) {
+          result.success(webView.getCertificateMap());
+        } else {
+          result.success(null);
+        }
+        break;
+      case "clearHistory":
+        if (webView != null) {
+          webView.clearHistory();
+          result.success(true);
+        } else {
+          result.success(false);
+        }
+        break;
       default:
         result.notImplemented();
     }
@@ -381,14 +520,20 @@ public class FlutterWebView implements PlatformView, MethodCallHandler  {
   public void dispose() {
     channel.setMethodCallHandler(null);
     if (webView != null) {
+      webView.inAppWebViewChromeClient.dispose();
+      webView.inAppWebViewClient.dispose();
+      webView.javaScriptBridgeInterface.dispose();
       webView.setWebChromeClient(new WebChromeClient());
       webView.setWebViewClient(new WebViewClient() {
+        @Override
         public void onPageFinished(WebView view, String url) {
           webView.dispose();
           webView.destroy();
           webView = null;
         }
       });
+      WebSettings settings = webView.getSettings();
+      settings.setJavaScriptEnabled(false);
       webView.loadUrl("about:blank");
     }
   }

@@ -2,17 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_inappwebview_example/chrome_safari_browser_example.screen.dart';
+import 'package:flutter_inappwebview_example/headless_in_app_webview.screen.dart';
 import 'package:flutter_inappwebview_example/in_app_webiew_example.screen.dart';
 import 'package:flutter_inappwebview_example/in_app_browser_example.screen.dart';
+// import 'package:permission_handler/permission_handler.dart';
 
 // InAppLocalhostServer localhostServer = new InAppLocalhostServer();
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+//  await Permission.camera.request();
+//  await Permission.storage.request();
   // await localhostServer.start();
-  runApp(new MyApp());
+  runApp(MyApp());
 }
 
 Drawer myDrawer({@required BuildContext context}) {
@@ -42,6 +45,12 @@ Drawer myDrawer({@required BuildContext context}) {
           title: Text('InAppWebView'),
           onTap: () {
             Navigator.pushReplacementNamed(context, '/');
+          },
+        ),
+        ListTile(
+          title: Text('HeadlessInAppWebView'),
+          onTap: () {
+            Navigator.pushReplacementNamed(context, '/HeadlessInAppWebView');
           },
         ),
       ],
@@ -74,6 +83,7 @@ class _MyAppState extends State<MyApp> {
           '/': (context) => InAppWebViewExampleScreen(),
           '/InAppBrowser': (context) => InAppBrowserExampleScreen(),
           '/ChromeSafariBrowser': (context) => ChromeSafariBrowserExampleScreen(),
+          '/HeadlessInAppWebView': (context) => HeadlessInAppWebViewExampleScreen(),
         }
     );
   }

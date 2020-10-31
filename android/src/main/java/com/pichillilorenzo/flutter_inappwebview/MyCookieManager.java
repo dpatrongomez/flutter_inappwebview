@@ -1,15 +1,19 @@
 package com.pichillilorenzo.flutter_inappwebview;
 
 import android.os.Build;
+import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
 import android.webkit.ValueCallback;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -45,7 +49,19 @@ public class MyCookieManager implements MethodChannel.MethodCallHandler {
           Long expiresDate = (expiresDateString != null ? new Long(expiresDateString) : null);
           Integer maxAge = (Integer) call.argument("maxAge");
           Boolean isSecure = (Boolean) call.argument("isSecure");
-          MyCookieManager.setCookie(url, name, value, domain, path, expiresDate, maxAge, isSecure, result);
+          Boolean isHttpOnly = (Boolean) call.argument("isHttpOnly");
+          String sameSite = (String) call.argument("sameSite");
+          MyCookieManager.setCookie(url,
+                  name,
+                  value,
+                  domain,
+                  path,
+                  expiresDate,
+                  maxAge,
+                  isSecure,
+                  isHttpOnly,
+                  sameSite,
+                  result);
         }
         break;
       case "getCookies":
@@ -84,6 +100,8 @@ public class MyCookieManager implements MethodChannel.MethodCallHandler {
                                Long expiresDate,
                                Integer maxAge,
                                Boolean isSecure,
+                               Boolean isHttpOnly,
+                               String sameSite,
                                final MethodChannel.Result result) {
 
     String cookieValue = name + "=" + value + "; Domain=" + domain + "; Path=" + path;
@@ -96,6 +114,12 @@ public class MyCookieManager implements MethodChannel.MethodCallHandler {
 
     if (isSecure != null && isSecure)
       cookieValue += "; Secure";
+
+    if (isHttpOnly != null && isHttpOnly)
+      cookieValue += "; HttpOnly";
+
+    if (sameSite != null)
+      cookieValue += "; SameSite=" + sameSite;
 
     cookieValue += ";";
 
@@ -129,10 +153,18 @@ public class MyCookieManager implements MethodChannel.MethodCallHandler {
       for (String cookie : cookies) {
         String[] nameValue = cookie.split("=", 2);
         String name = nameValue[0].trim();
-        String value = nameValue[1].trim();
+        String value = (nameValue.length > 1) ? nameValue[1].trim() : "";
         Map<String, Object> cookieMap = new HashMap<>();
         cookieMap.put("name", name);
         cookieMap.put("value", value);
+        cookieMap.put("expiresDate", null);
+        cookieMap.put("isSessionOnly", null);
+        cookieMap.put("domain", null);
+        cookieMap.put("sameSite", null);
+        cookieMap.put("isSecure", null);
+        cookieMap.put("isHttpOnly", null);
+        cookieMap.put("path", null);
+
         cookieListMap.add(cookieMap);
       }
     }
@@ -217,7 +249,7 @@ public class MyCookieManager implements MethodChannel.MethodCallHandler {
   }
 
   public static String getCookieExpirationDate(Long timestamp) {
-    final SimpleDateFormat sdf = new SimpleDateFormat("EEE, d MMM yyyy hh:mm:ss z");
+    final SimpleDateFormat sdf = new SimpleDateFormat("EEE, d MMM yyyy hh:mm:ss z", Locale.US);
     sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
     return sdf.format(new Date(timestamp));
   }

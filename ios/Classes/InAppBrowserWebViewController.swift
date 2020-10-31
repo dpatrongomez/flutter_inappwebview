@@ -14,17 +14,16 @@ import AVFoundation
 typealias OlderClosureType =  @convention(c) (Any, Selector, UnsafeRawPointer, Bool, Bool, Any?) -> Void
 typealias NewerClosureType =  @convention(c) (Any, Selector, UnsafeRawPointer, Bool, Bool, Bool, Any?) -> Void
 
-public class InAppWebView_IBWrapper: InAppWebView {
-    required init(coder: NSCoder) {
-        let config = WKWebViewConfiguration()
-        super.init(frame: .zero, configuration: config, IABController: nil, channel: nil)
+public class InAppWebView_IBWrapper: UIView {
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
         self.translatesAutoresizingMaskIntoConstraints = false
     }
 }
 
 public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIScrollViewDelegate, WKUIDelegate, UITextFieldDelegate {
     
-    @IBOutlet var containerWebView: UIView!
+    @IBOutlet var containerWebView: InAppWebView_IBWrapper!
     @IBOutlet var closeButton: UIButton!
     @IBOutlet var reloadButton: UIBarButtonItem!
     @IBOutlet var backButton: UIBarButtonItem!
@@ -43,9 +42,11 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
     @IBOutlet var webView_TopFullScreenConstraint: NSLayoutConstraint!
     
     var uuid: String = ""
+    var windowId: Int64?
     var webView: InAppWebView!
     var channel: FlutterMethodChannel?
     var initURL: URL?
+    var contextMenu: [String: Any]?
     var tmpWindow: UIWindow?
     var browserOptions: InAppBrowserOptions?
     var webViewOptions: InAppWebViewOptions?
@@ -242,13 +243,15 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
             case "scrollTo":
                 let x = arguments!["x"] as! Int
                 let y = arguments!["y"] as! Int
-                webView.scrollTo(x: x, y: y)
+                let animated = arguments!["animated"] as! Bool
+                webView.scrollTo(x: x, y: y, animated: animated)
                 result(true)
                 break
             case "scrollBy":
                 let x = arguments!["x"] as! Int
                 let y = arguments!["y"] as! Int
-                webView.scrollTo(x: x, y: y)
+                let animated = arguments!["animated"] as! Bool
+                webView.scrollTo(x: x, y: y, animated: animated)
                 result(true)
                 break
             case "pauseTimers":
@@ -281,6 +284,99 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
             case "hasOnlySecureContent":
                 result(webView.hasOnlySecureContent)
                 break
+            case "getSelectedText":
+                if webView != nil {
+                    webView!.getSelectedText { (value, error) in
+                        if let err = error {
+                            print(err.localizedDescription)
+                        }
+                        result(value)
+                    }
+                }
+                else {
+                    result(nil)
+                }
+                break
+            case "getHitTestResult":
+                if webView != nil {
+                    webView!.getHitTestResult { (value, error) in
+                        if let err = error {
+                            print(err.localizedDescription)
+                        }
+                        result(value)
+                    }
+                }
+                else {
+                    result(nil)
+                }
+                break
+            case "clearFocus":
+                if webView != nil {
+                    webView!.clearFocus()
+                    result(true)
+                } else {
+                    result(false)
+                }
+                
+                break
+            case "setContextMenu":
+                if webView != nil {
+                    let contextMenu = arguments!["contextMenu"] as? [String: Any]
+                    webView!.contextMenu = contextMenu
+                    result(true)
+                } else {
+                    result(false)
+                }
+                break
+            case "requestFocusNodeHref":
+                if webView != nil {
+                    webView!.requestFocusNodeHref { (value, error) in
+                        if let err = error {
+                            print(err.localizedDescription)
+                            result(nil)
+                            return
+                        }
+                        result(value)
+                    }
+                } else {
+                    result(false)
+                }
+                break
+            case "requestImageRef":
+                if webView != nil {
+                    webView!.requestImageRef { (value, error) in
+                        if let err = error {
+                            print(err.localizedDescription)
+                            result(nil)
+                            return
+                        }
+                        result(value)
+                    }
+                } else {
+                    result(false)
+                }
+                break
+            case "getScrollX":
+                if webView != nil {
+                    result(Int(webView!.scrollView.contentOffset.x))
+                } else {
+                    result(false)
+                }
+                break
+            case "getScrollY":
+                if webView != nil {
+                    result(Int(webView!.scrollView.contentOffset.y))
+                } else {
+                    result(false)
+                }
+                break
+            case "getCertificate":
+                if webView != nil {
+                    result(webView!.getCertificateMap())
+                } else {
+                    result(false)
+                }
+                break
             default:
                 result(FlutterMethodNotImplemented)
                 break
@@ -290,40 +386,55 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
     public override func viewWillAppear(_ animated: Bool) {
         if !viewPrepared {
             let preWebviewConfiguration = InAppWebView.preWKWebViewConfiguration(options: webViewOptions)
-            self.webView = InAppWebView(frame: .zero, configuration: preWebviewConfiguration, IABController: self, channel: channel!)
+            if let wId = windowId, let webViewTransport = InAppWebView.windowWebViews[wId] {
+                self.webView = webViewTransport.webView
+                self.webView.IABController = self
+                self.webView.contextMenu = contextMenu
+                self.webView.channel = channel!
+            } else {
+                self.webView = InAppWebView(frame: .zero,
+                                            configuration: preWebviewConfiguration,
+                                            IABController: self,
+                                            contextMenu: contextMenu,
+                                            channel: channel!)
+            }
             self.containerWebView.addSubview(self.webView)
             prepareConstraints()
             prepareWebView()
             
-            if #available(iOS 11.0, *) {
-                if let contentBlockers = webView.options?.contentBlockers, contentBlockers.count > 0 {
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: contentBlockers, options: [])
-                        let blockRules = String(data: jsonData, encoding: String.Encoding.utf8)
-                        WKContentRuleListStore.default().compileContentRuleList(
-                            forIdentifier: "ContentBlockingRules",
-                            encodedContentRuleList: blockRules) { (contentRuleList, error) in
-                                
-                                if let error = error {
-                                    print(error.localizedDescription)
-                                    return
-                                }
-                                
-                                let configuration = self.webView!.configuration
-                                configuration.userContentController.add(contentRuleList!)
-                                
-                                self.initLoad(initURL: self.initURL, initData: self.initData, initMimeType: self.initMimeType, initEncoding: self.initEncoding, initBaseUrl: self.initBaseUrl, initHeaders: self.initHeaders)
-                                
-                                self.onBrowserCreated()
+            if let wId = windowId, let webViewTransport = InAppWebView.windowWebViews[wId] {
+                self.webView.load(webViewTransport.request)
+            } else {
+                if #available(iOS 11.0, *) {
+                    if let contentBlockers = webView.options?.contentBlockers, contentBlockers.count > 0 {
+                        do {
+                            let jsonData = try JSONSerialization.data(withJSONObject: contentBlockers, options: [])
+                            let blockRules = String(data: jsonData, encoding: String.Encoding.utf8)
+                            WKContentRuleListStore.default().compileContentRuleList(
+                                forIdentifier: "ContentBlockingRules",
+                                encodedContentRuleList: blockRules) { (contentRuleList, error) in
+
+                                    if let error = error {
+                                        print(error.localizedDescription)
+                                        return
+                                    }
+
+                                    let configuration = self.webView!.configuration
+                                    configuration.userContentController.add(contentRuleList!)
+
+                                    self.initLoad(initURL: self.initURL, initData: self.initData, initMimeType: self.initMimeType, initEncoding: self.initEncoding, initBaseUrl: self.initBaseUrl, initHeaders: self.initHeaders)
+
+                                    self.onBrowserCreated()
+                            }
+                            return
+                        } catch {
+                            print(error.localizedDescription)
                         }
-                        return
-                    } catch {
-                        print(error.localizedDescription)
                     }
                 }
+                
+                initLoad(initURL: initURL, initData: initData, initMimeType: initMimeType, initEncoding: initEncoding, initBaseUrl: initBaseUrl, initHeaders: initHeaders)
             }
-            
-            initLoad(initURL: initURL, initData: initData, initMimeType: initMimeType, initEncoding: initEncoding, initBaseUrl: initBaseUrl, initHeaders: initHeaders)
             
             onBrowserCreated()
         }
@@ -661,11 +772,12 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
     }
     
     public func getOptions() -> [String: Any?]? {
-        if (self.browserOptions == nil || self.webView.getOptions() == nil) {
+        let webViewOptionsMap = self.webView.getOptions()
+        if (self.browserOptions == nil || webViewOptionsMap == nil) {
             return nil
         }
-        var optionsMap = self.browserOptions!.getHashMap()
-        optionsMap.merge(self.webView.getOptions()!, uniquingKeysWith: { (current, _) in current })
+        var optionsMap = self.browserOptions!.getRealOptions(obj: self)
+        optionsMap.merge(webViewOptionsMap!, uniquingKeysWith: { (current, _) in current })
         return optionsMap
     }
     
@@ -685,7 +797,8 @@ public class InAppBrowserWebViewController: UIViewController, FlutterPlugin, UIS
         tmpWindow?.windowLevel = UIWindow.Level(rawValue: 0.0)
         UIApplication.shared.delegate?.window??.makeKeyAndVisible()
         onExit()
-        channel!.setMethodCallHandler(nil)
+        channel?.setMethodCallHandler(nil)
+        channel = nil
     }
     
     public func onBrowserCreated() {

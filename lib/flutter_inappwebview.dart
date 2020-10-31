@@ -22,6 +22,9 @@
 library flutter_inappwebview;
 
 export 'src/types.dart';
+export 'src/webview.dart';
+export 'src/in_app_webview_controller.dart';
+export 'src/headless_in_app_webview.dart';
 export 'src/in_app_webview.dart';
 export 'src/in_app_browser.dart';
 export 'src/cookie_manager.dart';
@@ -32,3 +35,6 @@ export 'src/webview_options.dart';
 export 'src/content_blocker.dart';
 export 'src/http_auth_credentials_database.dart';
 export 'src/web_storage_manager.dart';
+export 'src/context_menu.dart';
+export 'src/web_storage.dart';
+export 'src/X509Certificate/main.dart';

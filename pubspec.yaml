@@ -1,7 +1,6 @@
 name: flutter_inappwebview
-description: A Flutter plugin that allows you to add an inline webview or open an in-app browser window.
-version: 3.0.0
-author: Lorenzo Pichilli <pichillilorenzo@gmail.com>
+description: A Flutter plugin that allows you to add an inline webview, to use an headless webview, and to open an in-app browser window.
+version: 5.0.0
 homepage: https://github.com/pichillilorenzo/flutter_inappwebview
 
 environment:
@@ -13,7 +12,6 @@ dependencies:
     sdk: flutter
   uuid: ^2.0.0
   mime: ^0.9.6+2
-  html: ^0.14.0+3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec
@@ -21,8 +19,12 @@ dependencies:
 # The following section is specific to Flutter.
 flutter:
   plugin:
-    androidPackage: com.pichillilorenzo.flutter_inappwebview
-    pluginClass: InAppWebViewFlutterPlugin
+    platforms:
+      android:
+        package: com.pichillilorenzo.flutter_inappwebview
+        pluginClass: InAppWebViewFlutterPlugin
+      ios:
+        pluginClass: InAppWebViewFlutterPlugin
 
   assets:
     - packages/flutter_inappwebview/t_rex_runner/t-rex.html

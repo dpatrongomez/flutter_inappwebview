@@ -4,8 +4,6 @@ import 'dart:async';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mime/mime.dart';
 
-///InAppLocalhostServer class.
-///
 ///This class allows you to create a simple server on `http://localhost:[port]/` in order to be able to load your assets file on a server. The default [port] value is `8080`.
 class InAppLocalhostServer {
   HttpServer _server;
@@ -31,7 +29,7 @@ class InAppLocalhostServer {
       throw Exception('Server already started on http://localhost:$_port');
     }
 
-    var completer = new Completer();
+    var completer = Completer();
 
     runZoned(() {
       HttpServer.bind('127.0.0.1', _port).then((server) {
@@ -64,7 +62,7 @@ class InAppLocalhostServer {
           }
 
           request.response.headers.contentType =
-              new ContentType(contentType[0], contentType[1], charset: 'utf-8');
+              ContentType(contentType[0], contentType[1], charset: 'utf-8');
           request.response.add(body);
           request.response.close();
         });

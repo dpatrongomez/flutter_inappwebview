@@ -43,7 +43,7 @@ class InAppWebViewJavaScriptHandlerTestState extends WidgetTestState {
                   child: InAppWebView(
                     initialFile: "test_assets/in_app_webview_javascript_handler_test.html",
                     initialHeaders: {},
-                    initialOptions: InAppWebViewWidgetOptions(
+                    initialOptions: InAppWebViewGroupOptions(
                         crossPlatform: InAppWebViewOptions(
                             clearCache: true,
                             debuggingEnabled: true
@@ -54,7 +54,7 @@ class InAppWebViewJavaScriptHandlerTestState extends WidgetTestState {
 
                       controller.addJavaScriptHandler(handlerName:'handlerFoo', callback: (args) {
                         appBarTitle = (args.length == 0).toString();
-                        return new Foo(bar: 'bar_value', baz: 'baz_value');
+                        return Foo(bar: 'bar_value', baz: 'baz_value');
                       });
 
                       controller.addJavaScriptHandler(handlerName: 'handlerFooWithArgs', callback: (args) {

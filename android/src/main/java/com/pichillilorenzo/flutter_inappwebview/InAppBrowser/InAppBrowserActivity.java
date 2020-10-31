@@ -1,19 +1,19 @@
-package com.pichillilorenzo.flutter_inappwebview;
+package com.pichillilorenzo.flutter_inappwebview.InAppBrowser;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Picture;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -23,12 +23,16 @@ import android.widget.SearchView;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 
 import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebView;
+import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebViewChromeClient;
 import com.pichillilorenzo.flutter_inappwebview.InAppWebView.InAppWebViewOptions;
+import com.pichillilorenzo.flutter_inappwebview.R;
+import com.pichillilorenzo.flutter_inappwebview.Shared;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,7 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
 
   static final String LOG_TAG = "InAppBrowserActivity";
   public MethodChannel channel;
+  public Integer windowId;
   public String uuid;
   public InAppWebView webView;
   public ActionBar actionBar;
@@ -50,13 +55,19 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
   public ProgressBar progressBar;
   public boolean isHidden = false;
   public String fromActivity;
+  public List<ActivityResultListener> activityResultListeners = new ArrayList<>();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    if (savedInstanceState != null) {
+      return;
+    }
+
     Bundle b = getIntent().getExtras();
     uuid = b.getString("uuid");
+    windowId = b.getInt("windowId");
 
     channel = new MethodChannel(Shared.messenger, "com.pichillilorenzo/flutter_inappbrowser_" + uuid);
     channel.setMethodCallHandler(this);
@@ -64,11 +75,14 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     setContentView(R.layout.activity_web_view);
 
     webView = findViewById(R.id.webView);
+    webView.windowId = windowId;
     webView.inAppBrowserActivity = this;
+    webView.channel = channel;
 
     fromActivity = b.getString("fromActivity");
 
     HashMap<String, Object> optionsMap = (HashMap<String, Object>) b.getSerializable("options");
+    HashMap<String, Object> contextMenu = (HashMap<String, Object>) b.getSerializable("contextMenu");
 
     options = new InAppBrowserOptions();
     options.parse(optionsMap);
@@ -76,24 +90,33 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     InAppWebViewOptions webViewOptions = new InAppWebViewOptions();
     webViewOptions.parse(optionsMap);
     webView.options = webViewOptions;
+    webView.contextMenu = contextMenu;
 
     actionBar = getSupportActionBar();
 
     prepareView();
 
-    Boolean isData = b.getBoolean("isData");
-    if (!isData) {
-      headers = (HashMap<String, String>) b.getSerializable("headers");
-      String url = b.getString("url");
-      webView.loadUrl(url, headers);
-    }
-    else {
-      String data = b.getString("data");
-      String mimeType = b.getString("mimeType");
-      String encoding = b.getString("encoding");
-      String baseUrl = b.getString("baseUrl");
-      String historyUrl = b.getString("historyUrl");
-      webView.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
+    if (windowId != -1) {
+      Message resultMsg = InAppWebViewChromeClient.windowWebViewMessages.get(windowId);
+      if (resultMsg != null) {
+        ((WebView.WebViewTransport) resultMsg.obj).setWebView(webView);
+        resultMsg.sendToTarget();
+      }
+    } else {
+      Boolean isData = b.getBoolean("isData");
+      if (!isData) {
+        headers = (HashMap<String, String>) b.getSerializable("headers");
+        String url = b.getString("url");
+        webView.loadUrl(url, headers);
+      }
+      else {
+        String data = b.getString("data");
+        String mimeType = b.getString("mimeType");
+        String encoding = b.getString("encoding");
+        String baseUrl = b.getString("baseUrl");
+        String historyUrl = b.getString("historyUrl");
+        webView.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
+      }
     }
 
     Map<String, Object> obj = new HashMap<>();
@@ -220,7 +243,7 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
         result.success(isHidden);
         break;
       case "takeScreenshot":
-        result.success(takeScreenshot());
+        takeScreenshot(result);
         break;
       case "setOptions":
         {
@@ -247,9 +270,6 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
       case "startSafeBrowsing":
         startSafeBrowsing(result);
         break;
-      case "setSafeBrowsingWhitelist":
-        setSafeBrowsingWhitelist((List<String>) call.argument("hosts"), result);
-        break;
       case "clearCache":
         clearCache();
         result.success(true);
@@ -257,9 +277,6 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
       case "clearSslPreferences":
         clearSslPreferences();
         result.success(true);
-        break;
-      case "clearClientCertPreferences":
-        clearClientCertPreferences(result);
         break;
       case "findAllAsync":
         String find = (String) call.argument("find");
@@ -277,7 +294,8 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
         {
           Integer x = (Integer) call.argument("x");
           Integer y = (Integer) call.argument("y");
-          scrollTo(x, y);
+          Boolean animated = (Boolean) call.argument("animated");
+          scrollTo(x, y, animated);
         }
         result.success(true);
         break;
@@ -285,7 +303,8 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
         {
           Integer x = (Integer) call.argument("x");
           Integer y = (Integer) call.argument("y");
-          scrollBy(x, y);
+          Boolean animated = (Boolean) call.argument("animated");
+          scrollBy(x, y, animated);
         }
         result.success(true);
         break;
@@ -326,6 +345,71 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
         break;
       case "getScale":
         result.success(getScale());
+        break;
+      case "getSelectedText":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+          getSelectedText(result);
+        } else {
+          result.success(null);
+        }
+        break;
+      case "getHitTestResult":
+        result.success(getHitTestResult());
+        break;
+      case "pageDown":
+        {
+          boolean bottom = (boolean) call.argument("bottom");
+          result.success(pageDown(bottom));
+        }
+        break;
+      case "pageUp":
+        {
+          boolean top = (boolean) call.argument("top");
+          result.success(pageUp(top));
+        }
+        break;
+      case "saveWebArchive":
+        {
+          String basename = (String) call.argument("basename");
+          boolean autoname = (boolean) call.argument("autoname");
+          saveWebArchive(basename, autoname, result);
+        }
+        break;
+      case "zoomIn":
+        result.success(zoomIn());
+        break;
+      case "zoomOut":
+        result.success(zoomOut());
+        break;
+      case "clearFocus":
+        clearFocus();
+        result.success(true);
+        break;
+      case "setContextMenu":
+        {
+          Map<String, Object> contextMenu = (Map<String, Object>) call.argument("contextMenu");
+          setContextMenu(contextMenu);
+        }
+        result.success(true);
+        break;
+      case "requestFocusNodeHref":
+        result.success(requestFocusNodeHref());
+        break;
+      case "requestImageRef":
+        result.success(requestImageRef());
+        break;
+      case "getScrollX":
+        result.success(getScrollX());
+        break;
+      case "getScrollY":
+        result.success(getScrollY());
+        break;
+      case "getCertificate":
+        result.success(getCertificate());
+        break;
+      case "clearHistory":
+        clearHistory();
+        result.success(true);
         break;
       default:
         result.notImplemented();
@@ -499,30 +583,14 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
   }
 
   public void close(final MethodChannel.Result result) {
-    runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
+    Map<String, Object> obj = new HashMap<>();
+    channel.invokeMethod("onExit", obj);
 
-        Map<String, Object> obj = new HashMap<>();
-        channel.invokeMethod("onExit", obj);
+    dispose();
 
-        webView.setWebViewClient(new WebViewClient() {
-          // NB: wait for about:blank before dismissing
-          public void onPageFinished(WebView view, String url) {
-            hide();
-            finish();
-          }
-        });
-        // NB: From SDK 19: "If you call methods on WebView from any thread
-        // other than your app's UI thread, it can cause unexpected results."
-        // http://developer.android.com/guide/webapps/migrating.html#Threads
-        webView.loadUrl("about:blank");
-        if (result != null) {
-          result.success(true);
-        }
-      }
-    });
-
+    if (result != null) {
+      result.success(true);
+    }
   }
 
   public void reload() {
@@ -616,24 +684,11 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     close(null);
   }
 
-  public byte[] takeScreenshot() {
-    if (webView != null) {
-      Picture picture = webView.capturePicture();
-      Bitmap b = Bitmap.createBitmap( webView.getWidth(),
-              webView.getHeight(), Bitmap.Config.ARGB_8888);
-      Canvas c = new Canvas(b);
-
-      picture.draw(c);
-      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-      b.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
-      try {
-        byteArrayOutputStream.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-      return byteArrayOutputStream.toByteArray();
-    }
-    return null;
+  public void takeScreenshot(MethodChannel.Result result) {
+    if (webView != null)
+      webView.takeScreenshot(result);
+    else
+      result.success(null);
   }
 
   public void setOptions(InAppBrowserOptions newOptions, HashMap<String, Object> newOptionsMap) {
@@ -682,12 +737,12 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     options = newOptions;
   }
 
-  public HashMap<String, Object> getOptions() {
-    HashMap<String, Object> webViewOptionsMap = webView.getOptions();
+  public Map<String, Object> getOptions() {
+    Map<String, Object> webViewOptionsMap = webView.getOptions();
     if (options == null || webViewOptionsMap == null)
       return null;
 
-    HashMap<String, Object> optionsMap = options.getHashMap();
+    Map<String, Object> optionsMap = options.getRealOptions(this);
     optionsMap.putAll(webViewOptionsMap);
     return optionsMap;
   }
@@ -720,18 +775,19 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     return null;
   }
 
-  public void startSafeBrowsing(MethodChannel.Result result) {
-    if (webView != null)
-      webView.startSafeBrowsing(result);
-    else
+  public void startSafeBrowsing(final MethodChannel.Result result) {
+    if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 &&
+            WebViewFeature.isFeatureSupported(WebViewFeature.START_SAFE_BROWSING)) {
+      WebViewCompat.startSafeBrowsing(webView.getContext(), new ValueCallback<Boolean>() {
+        @Override
+        public void onReceiveValue(Boolean success) {
+          result.success(success);
+        }
+      });
+    }
+    else {
       result.success(false);
-  }
-
-  public void setSafeBrowsingWhitelist(List<String> hosts, MethodChannel.Result result) {
-    if (webView != null)
-      webView.setSafeBrowsingWhitelist(hosts, result);
-    else
-      result.success(false);
+    }
   }
 
   public void clearCache() {
@@ -742,19 +798,6 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
   public void clearSslPreferences() {
     if (webView != null)
       webView.clearSslPreferences();
-  }
-
-  public void clearClientCertPreferences(final MethodChannel.Result result) {
-    if (webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      webView.clearClientCertPreferences(new Runnable() {
-        @Override
-        public void run() {
-          result.success(true);
-        }
-      });
-    }
-    else
-      result.success(false);
   }
 
   public void findAllAsync(String find) {
@@ -780,14 +823,14 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
       result.success(false);
   }
 
-  public void scrollTo(Integer x, Integer y) {
+  public void scrollTo(Integer x, Integer y, Boolean animated) {
     if (webView != null)
-      webView.scrollTo(x, y);
+      webView.scrollTo(x, y, animated);
   }
 
-  public void scrollBy(Integer x, Integer y) {
+  public void scrollBy(Integer x, Integer y, Boolean animated) {
     if (webView != null)
-      webView.scrollBy(x, y);
+      webView.scrollBy(x, y, animated);
   }
 
   public void onPauseWebView() {
@@ -840,9 +883,116 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
     return null;
   }
 
+  @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+  public void getSelectedText(MethodChannel.Result result) {
+    if (webView != null)
+      webView.getSelectedText(result);
+    else
+      result.success(null);
+  }
+
+  public Map<String, Object> getHitTestResult() {
+    if (webView != null) {
+      WebView.HitTestResult hitTestResult = webView.getHitTestResult();
+      Map<String, Object> obj = new HashMap<>();
+      obj.put("type", hitTestResult.getType());
+      obj.put("extra", hitTestResult.getExtra());
+      return obj;
+    }
+    return null;
+  }
+
+  public boolean pageDown(boolean bottom) {
+    if (webView != null)
+      return webView.pageDown(bottom);
+    return false;
+  }
+
+  public boolean pageUp(boolean top) {
+    if (webView != null)
+      return webView.pageUp(top);
+    return false;
+  }
+
+  public void saveWebArchive(String basename, boolean autoname, final MethodChannel.Result result) {
+    if (webView != null) {
+      webView.saveWebArchive(basename, autoname, new ValueCallback<String>() {
+        @Override
+        public void onReceiveValue(String value) {
+          result.success(value);
+        }
+      });
+    } else {
+      result.success(null);
+    }
+  }
+
+  public boolean zoomIn() {
+    if (webView != null)
+      return webView.zoomIn();
+    return false;
+  }
+
+  public boolean zoomOut() {
+    if (webView != null)
+      return webView.zoomOut();
+    return false;
+  }
+
+  public void clearFocus() {
+    if (webView != null)
+      webView.clearFocus();
+  }
+
+  public void setContextMenu(Map<String, Object> contextMenu) {
+    if (webView != null)
+      webView.contextMenu = contextMenu;
+  }
+
+  public Map<String, Object> requestFocusNodeHref() {
+    if (webView != null)
+      return webView.requestFocusNodeHref();
+    return null;
+  }
+
+  public Map<String, Object> requestImageRef() {
+    if (webView != null)
+      return webView.requestImageRef();
+    return null;
+  }
+
+  public Integer getScrollX() {
+    if (webView != null)
+      return webView.getScrollX();
+    return null;
+  }
+
+  public Integer getScrollY() {
+    if (webView != null)
+      return webView.getScrollY();
+    return null;
+  }
+
+  public Map<String, Object> getCertificate() {
+    if (webView != null)
+      return webView.getCertificateMap();
+    return null;
+  }
+
+  public void clearHistory() {
+    if (webView != null)
+      webView.clearHistory();
+  }
+
   public void dispose() {
     channel.setMethodCallHandler(null);
+    activityResultListeners.clear();
     if (webView != null) {
+      if (Shared.activityPluginBinding != null) {
+        Shared.activityPluginBinding.removeActivityResultListener(webView.inAppWebViewChromeClient);
+      }
+      ViewGroup vg = (ViewGroup) (webView.getParent());
+      vg.removeView(webView);
       webView.setWebChromeClient(new WebChromeClient());
       webView.setWebViewClient(new WebViewClient() {
         public void onPageFinished(WebView view, String url) {
@@ -852,12 +1002,30 @@ public class InAppBrowserActivity extends AppCompatActivity implements MethodCha
         }
       });
       webView.loadUrl("about:blank");
+      finish();
     }
+  }
+
+  @Override
+  protected void onActivityResult (int requestCode,
+                                   int resultCode,
+                                   Intent data) {
+    for (ActivityResultListener listener : activityResultListeners) {
+      if (listener.onActivityResult(requestCode, resultCode, data)) {
+        return;
+      }
+    }
+    super.onActivityResult(requestCode, resultCode, data);
   }
 
   @Override
   public void onDestroy() {
     dispose();
     super.onDestroy();
+  }
+
+  public interface ActivityResultListener {
+    /** @return true if the result has been handled. */
+    boolean onActivityResult(int requestCode, int resultCode, Intent data);
   }
 }

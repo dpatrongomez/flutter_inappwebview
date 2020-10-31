@@ -1,7 +1,8 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'content_blocker.dart';
 import 'types.dart';
+import 'webview.dart';
 
 class AndroidOptions {}
 
@@ -15,6 +16,19 @@ class WebViewOptions {
   static WebViewOptions fromMap(Map<String, dynamic> map) {
     return null;
   }
+
+  WebViewOptions copy() {
+    return WebViewOptions.fromMap(this.toMap());
+  }
+
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
 }
 
 class BrowserOptions {
@@ -25,6 +39,19 @@ class BrowserOptions {
   static BrowserOptions fromMap(Map<String, dynamic> map) {
     return null;
   }
+
+  BrowserOptions copy() {
+    return BrowserOptions.fromMap(this.toMap());
+  }
+
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
 }
 
 class ChromeSafariBrowserOptions {
@@ -34,6 +61,19 @@ class ChromeSafariBrowserOptions {
 
   static ChromeSafariBrowserOptions fromMap(Map<String, dynamic> map) {
     return null;
+  }
+
+  ChromeSafariBrowserOptions copy() {
+    return ChromeSafariBrowserOptions.fromMap(this.toMap());
+  }
+
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
   }
 }
 
@@ -49,7 +89,7 @@ class InAppWebViewOptions
   ///Set to `true` to be able to listen at the [onDownloadStart] event. The default value is `false`.
   bool useOnDownloadStart;
 
-  ///Set to `true` to have all the browser's cache cleared before the new window is opened. The default value is `false`.
+  ///Set to `true` to have all the browser's cache cleared before the new WebView is opened. The default value is `false`.
   bool clearCache;
 
   ///Sets the user-agent for the WebView.
@@ -128,6 +168,12 @@ class InAppWebViewOptions
   ///Set to `true` to disable horizontal scroll. The default value is `false`.
   bool disableHorizontalScroll;
 
+  ///Set to `true` to disable context menu. The default value is `false`.
+  bool disableContextMenu;
+
+  ///Set to `false` if the WebView should not support zooming using its on-screen zoom controls and gestures. The default value is `true`.
+  bool supportZoom;
+
   InAppWebViewOptions(
       {this.useShouldOverrideUrlLoading = false,
       this.useOnLoadResource = false,
@@ -144,17 +190,18 @@ class InAppWebViewOptions
       this.horizontalScrollBarEnabled = true,
       this.resourceCustomSchemes = const [],
       this.contentBlockers = const [],
-      this.preferredContentMode =
-          UserPreferredContentMode.RECOMMENDED,
+      this.preferredContentMode = UserPreferredContentMode.RECOMMENDED,
       this.useShouldInterceptAjaxRequest = false,
       this.useShouldInterceptFetchRequest = false,
       this.incognito = false,
       this.cacheEnabled = true,
       this.transparentBackground = false,
       this.disableVerticalScroll = false,
-      this.disableHorizontalScroll = false}) {
+      this.disableHorizontalScroll = false,
+      this.disableContextMenu = false,
+      this.supportZoom = true}) {
     if (this.minimumFontSize == null)
-      this.minimumFontSize = Platform.isAndroid ? 8 : 0;
+      this.minimumFontSize = defaultTargetPlatform == TargetPlatform.android ? 8 : 0;
     assert(!this.resourceCustomSchemes.contains("http") &&
         !this.resourceCustomSchemes.contains("https"));
   }
@@ -189,7 +236,9 @@ class InAppWebViewOptions
       "cacheEnabled": cacheEnabled,
       "transparentBackground": transparentBackground,
       "disableVerticalScroll": disableVerticalScroll,
-      "disableHorizontalScroll": disableHorizontalScroll
+      "disableHorizontalScroll": disableHorizontalScroll,
+      "disableContextMenu": disableContextMenu,
+      "supportZoom": supportZoom
     };
   }
 
@@ -204,7 +253,7 @@ class InAppWebViewOptions
       });
     }
 
-    InAppWebViewOptions options = new InAppWebViewOptions();
+    InAppWebViewOptions options = InAppWebViewOptions();
     options.useShouldOverrideUrlLoading = map["useShouldOverrideUrlLoading"];
     options.useOnLoadResource = map["useOnLoadResource"];
     options.useOnDownloadStart = map["useOnDownloadStart"];
@@ -223,8 +272,7 @@ class InAppWebViewOptions
         List<String>.from(map["resourceCustomSchemes"] ?? []);
     options.contentBlockers = contentBlockers;
     options.preferredContentMode =
-        UserPreferredContentMode.fromValue(
-            map["preferredContentMode"]);
+        UserPreferredContentMode.fromValue(map["preferredContentMode"]);
     options.useShouldInterceptAjaxRequest =
         map["useShouldInterceptAjaxRequest"];
     options.useShouldInterceptFetchRequest =
@@ -234,7 +282,24 @@ class InAppWebViewOptions
     options.transparentBackground = map["transparentBackground"];
     options.disableVerticalScroll = map["disableVerticalScroll"];
     options.disableHorizontalScroll = map["disableHorizontalScroll"];
+    options.disableContextMenu = map["disableContextMenu"];
+    options.supportZoom = map["supportZoom"];
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  InAppWebViewOptions copy() {
+    return InAppWebViewOptions.fromMap(this.toMap());
   }
 }
 
@@ -247,14 +312,11 @@ class AndroidInAppWebViewOptions
   ///Set to `true` to have the session cookie cache cleared before the new window is opened.
   bool clearSessionCache;
 
-  ///Set to `true` if the WebView should use its built-in zoom mechanisms. The default value is `false`.
+  ///Set to `true` if the WebView should use its built-in zoom mechanisms. The default value is `true`.
   bool builtInZoomControls;
 
   ///Set to `true` if the WebView should display on-screen zoom controls when using the built-in zoom mechanisms. The default value is `false`.
   bool displayZoomControls;
-
-  ///Set to `false` if the WebView should not support zooming using its on-screen zoom controls and gestures. The default value is `true`.
-  bool supportZoom;
 
   ///Set to `true` if you want the database storage API is enabled. The default value is `true`.
   bool databaseEnabled;
@@ -400,7 +462,7 @@ class AndroidInAppWebViewOptions
   ///The default value is `true`.
   bool hardwareAcceleration;
 
-  ///Sets whether the WebView whether supports multiple windows.
+  ///Sets whether the WebView supports multiple windows.
   ///If set to `true`, [onCreateWindow] event must be implemented by the host application. The default value is `false`.
   bool supportMultipleWindows;
 
@@ -408,49 +470,113 @@ class AndroidInAppWebViewOptions
   ///If the url request of a subframe matches the regular expression, then the request of that subframe is canceled.
   String regexToCancelSubFramesLoading;
 
-  AndroidInAppWebViewOptions(
-      {this.textZoom = 100,
-      this.clearSessionCache = false,
-      this.builtInZoomControls = false,
-      this.displayZoomControls = false,
-      this.supportZoom = true,
-      this.databaseEnabled = false,
-      this.domStorageEnabled = true,
-      this.useWideViewPort = true,
-      this.safeBrowsingEnabled = true,
-      this.mixedContentMode,
-      this.allowContentAccess = true,
-      this.allowFileAccess = true,
-      this.allowFileAccessFromFileURLs = false,
-      this.allowUniversalAccessFromFileURLs = false,
-      this.appCachePath,
-      this.blockNetworkImage = false,
-      this.blockNetworkLoads = false,
-      this.cacheMode = AndroidCacheMode.LOAD_DEFAULT,
-      this.cursiveFontFamily = "cursive",
-      this.defaultFixedFontSize = 16,
-      this.defaultFontSize = 16,
-      this.defaultTextEncodingName = "UTF-8",
-      this.disabledActionModeMenuItems,
-      this.fantasyFontFamily = "fantasy",
-      this.fixedFontFamily = "monospace",
-      this.forceDark = AndroidForceDark.FORCE_DARK_OFF,
-      this.geolocationEnabled = true,
-      this.layoutAlgorithm,
-      this.loadWithOverviewMode = true,
-      this.loadsImagesAutomatically = true,
-      this.minimumLogicalFontSize = 8,
-      this.needInitialFocus = true,
-      this.offscreenPreRaster = false,
-      this.sansSerifFontFamily = "sans-serif",
-      this.serifFontFamily = "sans-serif",
-      this.standardFontFamily = "sans-serif",
-      this.saveFormData = true,
-      this.thirdPartyCookiesEnabled = true,
-      this.hardwareAcceleration = true,
-      this.initialScale = 0,
-      this.supportMultipleWindows = false,
-      this.regexToCancelSubFramesLoading});
+  ///Set to `true` to enable Flutter's new Hybrid Composition. The default value is `false`.
+  ///Hybrid Composition is supported starting with Flutter v1.20+.
+  ///
+  ///**NOTE**: It is recommended to use Hybrid Composition only on Android 10+ for a release app,
+  ///as it can cause framerate drops on animations in Android 9 and lower (see [Hybrid-Composition#performance](https://github.com/flutter/flutter/wiki/Hybrid-Composition#performance)).
+  bool useHybridComposition;
+
+  ///Set to `true` to be able to listen at the [WebView.androidShouldInterceptRequest] event. The default value is `false`.
+  bool useShouldInterceptRequest;
+
+  ///Set to `true` to be able to listen at the [WebView.androidOnRenderProcessGone] event. The default value is `false`.
+  bool useOnRenderProcessGone;
+
+  ///Sets the WebView's over-scroll mode.
+  ///Setting the over-scroll mode of a WebView will have an effect only if the WebView is capable of scrolling.
+  ///The default value is [AndroidOverScrollMode.OVER_SCROLL_IF_CONTENT_SCROLLS].
+  AndroidOverScrollMode overScrollMode;
+
+  ///Informs WebView of the network state.
+  ///This is used to set the JavaScript property `window.navigator.isOnline` and generates the online/offline event as specified in HTML5, sec. 5.7.7.
+  bool networkAvailable;
+
+  ///Specifies the style of the scrollbars. The scrollbars can be overlaid or inset.
+  ///When inset, they add to the padding of the view. And the scrollbars can be drawn inside the padding area or on the edge of the view.
+  ///For example, if a view has a background drawable and you want to draw the scrollbars inside the padding specified by the drawable,
+  ///you can use SCROLLBARS_INSIDE_OVERLAY or SCROLLBARS_INSIDE_INSET. If you want them to appear at the edge of the view, ignoring the padding,
+  ///then you can use SCROLLBARS_OUTSIDE_OVERLAY or SCROLLBARS_OUTSIDE_INSET.
+  ///The default value is [AndroidScrollBarStyle.SCROLLBARS_INSIDE_OVERLAY].
+  AndroidScrollBarStyle scrollBarStyle;
+
+  ///Sets the position of the vertical scroll bar.
+  ///The default value is [AndroidVerticalScrollbarPosition.SCROLLBAR_POSITION_DEFAULT].
+  AndroidVerticalScrollbarPosition verticalScrollbarPosition;
+
+  ///Defines the delay in milliseconds that a scrollbar waits before fade out.
+  int scrollBarDefaultDelayBeforeFade;
+
+  ///Defines whether scrollbars will fade when the view is not scrolling.
+  ///The default value is `true`.
+  bool scrollbarFadingEnabled;
+
+  ///Defines the scrollbar fade duration in milliseconds.
+  int scrollBarFadeDuration;
+
+  ///Sets the renderer priority policy for this WebView.
+  RendererPriorityPolicy rendererPriorityPolicy;
+
+  ///Sets whether the default Android error page should be disabled.
+  ///The default value is `false`.
+  bool disableDefaultErrorPage;
+
+  AndroidInAppWebViewOptions({
+    this.textZoom = 100,
+    this.clearSessionCache = false,
+    this.builtInZoomControls = true,
+    this.displayZoomControls = false,
+    this.databaseEnabled = true,
+    this.domStorageEnabled = true,
+    this.useWideViewPort = true,
+    this.safeBrowsingEnabled = true,
+    this.mixedContentMode,
+    this.allowContentAccess = true,
+    this.allowFileAccess = true,
+    this.allowFileAccessFromFileURLs = false,
+    this.allowUniversalAccessFromFileURLs = false,
+    this.appCachePath,
+    this.blockNetworkImage = false,
+    this.blockNetworkLoads = false,
+    this.cacheMode = AndroidCacheMode.LOAD_DEFAULT,
+    this.cursiveFontFamily = "cursive",
+    this.defaultFixedFontSize = 16,
+    this.defaultFontSize = 16,
+    this.defaultTextEncodingName = "UTF-8",
+    this.disabledActionModeMenuItems,
+    this.fantasyFontFamily = "fantasy",
+    this.fixedFontFamily = "monospace",
+    this.forceDark = AndroidForceDark.FORCE_DARK_OFF,
+    this.geolocationEnabled = true,
+    this.layoutAlgorithm,
+    this.loadWithOverviewMode = true,
+    this.loadsImagesAutomatically = true,
+    this.minimumLogicalFontSize = 8,
+    this.needInitialFocus = true,
+    this.offscreenPreRaster = false,
+    this.sansSerifFontFamily = "sans-serif",
+    this.serifFontFamily = "sans-serif",
+    this.standardFontFamily = "sans-serif",
+    this.saveFormData = true,
+    this.thirdPartyCookiesEnabled = true,
+    this.hardwareAcceleration = true,
+    this.initialScale = 0,
+    this.supportMultipleWindows = false,
+    this.regexToCancelSubFramesLoading,
+    this.useHybridComposition = false,
+    this.useShouldInterceptRequest = false,
+    this.useOnRenderProcessGone = false,
+    this.overScrollMode = AndroidOverScrollMode.OVER_SCROLL_IF_CONTENT_SCROLLS,
+    this.networkAvailable,
+    this.scrollBarStyle = AndroidScrollBarStyle.SCROLLBARS_INSIDE_OVERLAY,
+    this.verticalScrollbarPosition =
+        AndroidVerticalScrollbarPosition.SCROLLBAR_POSITION_DEFAULT,
+    this.scrollBarDefaultDelayBeforeFade,
+    this.scrollbarFadingEnabled = true,
+    this.scrollBarFadeDuration,
+    this.rendererPriorityPolicy,
+    this.disableDefaultErrorPage,
+  });
 
   @override
   Map<String, dynamic> toMap() {
@@ -459,7 +585,6 @@ class AndroidInAppWebViewOptions
       "clearSessionCache": clearSessionCache,
       "builtInZoomControls": builtInZoomControls,
       "displayZoomControls": displayZoomControls,
-      "supportZoom": supportZoom,
       "databaseEnabled": databaseEnabled,
       "domStorageEnabled": domStorageEnabled,
       "useWideViewPort": useWideViewPort,
@@ -496,17 +621,28 @@ class AndroidInAppWebViewOptions
       "thirdPartyCookiesEnabled": thirdPartyCookiesEnabled,
       "hardwareAcceleration": hardwareAcceleration,
       "supportMultipleWindows": supportMultipleWindows,
-      "regexToCancelSubFramesLoading": regexToCancelSubFramesLoading
+      "useHybridComposition": useHybridComposition,
+      "regexToCancelSubFramesLoading": regexToCancelSubFramesLoading,
+      "useShouldInterceptRequest": useShouldInterceptRequest,
+      "useOnRenderProcessGone": useOnRenderProcessGone,
+      "overScrollMode": overScrollMode?.toValue(),
+      "networkAvailable": networkAvailable,
+      "scrollBarStyle": scrollBarStyle?.toValue(),
+      "verticalScrollbarPosition": verticalScrollbarPosition?.toValue(),
+      "scrollBarDefaultDelayBeforeFade": scrollBarDefaultDelayBeforeFade,
+      "scrollbarFadingEnabled": scrollbarFadingEnabled,
+      "scrollBarFadeDuration": scrollBarFadeDuration,
+      "rendererPriorityPolicy": rendererPriorityPolicy?.toMap(),
+      "disableDefaultErrorPage": disableDefaultErrorPage
     };
   }
 
   static AndroidInAppWebViewOptions fromMap(Map<String, dynamic> map) {
-    AndroidInAppWebViewOptions options = new AndroidInAppWebViewOptions();
+    AndroidInAppWebViewOptions options = AndroidInAppWebViewOptions();
     options.textZoom = map["textZoom"];
     options.clearSessionCache = map["clearSessionCache"];
     options.builtInZoomControls = map["builtInZoomControls"];
     options.displayZoomControls = map["displayZoomControls"];
-    options.supportZoom = map["supportZoom"];
     options.databaseEnabled = map["databaseEnabled"];
     options.domStorageEnabled = map["domStorageEnabled"];
     options.useWideViewPort = map["useWideViewPort"];
@@ -521,19 +657,16 @@ class AndroidInAppWebViewOptions
     options.appCachePath = map["appCachePath"];
     options.blockNetworkImage = map["blockNetworkImage"];
     options.blockNetworkLoads = map["blockNetworkLoads"];
-    options.cacheMode =
-        AndroidCacheMode.fromValue(map["cacheMode"]);
+    options.cacheMode = AndroidCacheMode.fromValue(map["cacheMode"]);
     options.cursiveFontFamily = map["cursiveFontFamily"];
     options.defaultFixedFontSize = map["defaultFixedFontSize"];
     options.defaultFontSize = map["defaultFontSize"];
     options.defaultTextEncodingName = map["defaultTextEncodingName"];
     options.disabledActionModeMenuItems =
-        AndroidActionModeMenuItem.fromValue(
-            map["disabledActionModeMenuItems"]);
+        AndroidActionModeMenuItem.fromValue(map["disabledActionModeMenuItems"]);
     options.fantasyFontFamily = map["fantasyFontFamily"];
     options.fixedFontFamily = map["fixedFontFamily"];
-    options.forceDark =
-        AndroidForceDark.fromValue(map["forceDark"]);
+    options.forceDark = AndroidForceDark.fromValue(map["forceDark"]);
     options.geolocationEnabled = map["geolocationEnabled"];
     options.layoutAlgorithm =
         AndroidLayoutAlgorithm.fromValue(map["layoutAlgorithm"]);
@@ -550,8 +683,42 @@ class AndroidInAppWebViewOptions
     options.thirdPartyCookiesEnabled = map["thirdPartyCookiesEnabled"];
     options.hardwareAcceleration = map["hardwareAcceleration"];
     options.supportMultipleWindows = map["supportMultipleWindows"];
-    options.regexToCancelSubFramesLoading = map["regexToCancelSubFramesLoading"];
+    options.regexToCancelSubFramesLoading =
+        map["regexToCancelSubFramesLoading"];
+    options.useHybridComposition = map["useHybridComposition"];
+    options.useShouldInterceptRequest = map["useShouldInterceptRequest"];
+    options.useOnRenderProcessGone = map["useOnRenderProcessGone"];
+    options.overScrollMode =
+        AndroidOverScrollMode.fromValue(map["overScrollMode"]);
+    options.networkAvailable = map["networkAvailable"];
+    options.scrollBarStyle =
+        AndroidScrollBarStyle.fromValue(map["scrollBarStyle"]);
+    options.verticalScrollbarPosition =
+        AndroidVerticalScrollbarPosition.fromValue(
+            map["verticalScrollbarPosition"]);
+    options.scrollBarDefaultDelayBeforeFade =
+        map["scrollBarDefaultDelayBeforeFade"];
+    options.scrollbarFadingEnabled = map["scrollbarFadingEnabled"];
+    options.scrollBarFadeDuration = map["scrollBarFadeDuration"];
+    options.rendererPriorityPolicy = RendererPriorityPolicy.fromMap(
+        map["rendererPriorityPolicy"]?.cast<String, dynamic>());
+    options.disableDefaultErrorPage = map["disableDefaultErrorPage"];
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  AndroidInAppWebViewOptions copy() {
+    return AndroidInAppWebViewOptions.fromMap(this.toMap());
   }
 }
 
@@ -621,7 +788,7 @@ class IOSInAppWebViewOptions
   ///**NOTE**: available on iOS 13.0+.
   bool automaticallyAdjustsScrollIndicatorInsets;
 
-  ///A Boolean value indicating whether the view ignores an accessibility request to invert its colors.
+  ///A Boolean value indicating whether the WebView ignores an accessibility request to invert its colors.
   ///The default value is `false`.
   ///
   ///**NOTE**: available on iOS 11.0+.
@@ -661,6 +828,10 @@ class IOSInAppWebViewOptions
   ///The default value is `1.0`.
   double minimumZoomScale;
 
+  ///Configures how safe area insets are added to the adjusted content inset.
+  ///The default value is [IOSUIScrollViewContentInsetAdjustmentBehavior.NEVER].
+  IOSUIScrollViewContentInsetAdjustmentBehavior contentInsetAdjustmentBehavior;
+
   IOSInAppWebViewOptions(
       {this.disallowOverScroll = false,
       this.enableViewportScale = false,
@@ -683,7 +854,9 @@ class IOSInAppWebViewOptions
       this.scrollsToTop = true,
       this.isPagingEnabled = false,
       this.maximumZoomScale = 1.0,
-      this.minimumZoomScale = 1.0});
+      this.minimumZoomScale = 1.0,
+      this.contentInsetAdjustmentBehavior =
+          IOSUIScrollViewContentInsetAdjustmentBehavior.NEVER});
 
   @override
   Map<String, dynamic> toMap() {
@@ -708,7 +881,8 @@ class IOSInAppWebViewOptions
       "selectionGranularity": selectionGranularity.toValue(),
       "dataDetectorTypes": dataDetectorTypesList,
       "sharedCookiesEnabled": sharedCookiesEnabled,
-      "automaticallyAdjustsScrollIndicatorInsets": automaticallyAdjustsScrollIndicatorInsets,
+      "automaticallyAdjustsScrollIndicatorInsets":
+          automaticallyAdjustsScrollIndicatorInsets,
       "accessibilityIgnoresInvertColors": accessibilityIgnoresInvertColors,
       "decelerationRate": decelerationRate.toValue(),
       "alwaysBounceVertical": alwaysBounceVertical,
@@ -716,7 +890,8 @@ class IOSInAppWebViewOptions
       "scrollsToTop": scrollsToTop,
       "isPagingEnabled": isPagingEnabled,
       "maximumZoomScale": maximumZoomScale,
-      "minimumZoomScale": minimumZoomScale
+      "minimumZoomScale": minimumZoomScale,
+      "contentInsetAdjustmentBehavior": contentInsetAdjustmentBehavior.toValue()
     };
   }
 
@@ -725,11 +900,10 @@ class IOSInAppWebViewOptions
     List<String> dataDetectorTypesList =
         List<String>.from(map["dataDetectorTypes"] ?? []);
     dataDetectorTypesList.forEach((dataDetectorType) {
-      dataDetectorTypes
-          .add(IOSWKDataDetectorTypes.fromValue(dataDetectorType));
+      dataDetectorTypes.add(IOSWKDataDetectorTypes.fromValue(dataDetectorType));
     });
 
-    IOSInAppWebViewOptions options = new IOSInAppWebViewOptions();
+    IOSInAppWebViewOptions options = IOSInAppWebViewOptions();
     options.disallowOverScroll = map["disallowOverScroll"];
     options.enableViewportScale = map["enableViewportScale"];
     options.suppressesIncrementalRendering =
@@ -746,20 +920,40 @@ class IOSInAppWebViewOptions
     options.isFraudulentWebsiteWarningEnabled =
         map["isFraudulentWebsiteWarningEnabled"];
     options.selectionGranularity =
-        IOSWKSelectionGranularity.fromValue(
-            map["selectionGranularity"]);
+        IOSWKSelectionGranularity.fromValue(map["selectionGranularity"]);
     options.dataDetectorTypes = dataDetectorTypes;
     options.sharedCookiesEnabled = map["sharedCookiesEnabled"];
-    options.automaticallyAdjustsScrollIndicatorInsets = map["automaticallyAdjustsScrollIndicatorInsets"];
-    options.accessibilityIgnoresInvertColors = map["accessibilityIgnoresInvertColors"];
-    options.decelerationRate = IOSUIScrollViewDecelerationRate.fromValue(map["decelerationRate"]);
+    options.automaticallyAdjustsScrollIndicatorInsets =
+        map["automaticallyAdjustsScrollIndicatorInsets"];
+    options.accessibilityIgnoresInvertColors =
+        map["accessibilityIgnoresInvertColors"];
+    options.decelerationRate =
+        IOSUIScrollViewDecelerationRate.fromValue(map["decelerationRate"]);
     options.alwaysBounceVertical = map["alwaysBounceVertical"];
     options.alwaysBounceHorizontal = map["alwaysBounceHorizontal"];
     options.scrollsToTop = map["scrollsToTop"];
     options.isPagingEnabled = map["isPagingEnabled"];
     options.maximumZoomScale = map["maximumZoomScale"];
     options.minimumZoomScale = map["minimumZoomScale"];
+    options.contentInsetAdjustmentBehavior =
+        IOSUIScrollViewContentInsetAdjustmentBehavior.fromValue(
+            map["contentInsetAdjustmentBehavior"]);
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  IOSInAppWebViewOptions copy() {
+    return IOSInAppWebViewOptions.fromMap(this.toMap());
   }
 }
 
@@ -796,12 +990,27 @@ class InAppBrowserOptions
   }
 
   static InAppBrowserOptions fromMap(Map<String, dynamic> map) {
-    InAppBrowserOptions options = new InAppBrowserOptions();
+    InAppBrowserOptions options = InAppBrowserOptions();
     options.hidden = map["hidden"];
     options.toolbarTop = map["toolbarTop"];
     options.toolbarTopBackgroundColor = map["toolbarTopBackgroundColor"];
     options.hideUrlBar = map["hideUrlBar"];
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  InAppBrowserOptions copy() {
+    return InAppBrowserOptions.fromMap(this.toMap());
   }
 }
 
@@ -820,7 +1029,7 @@ class AndroidInAppBrowserOptions implements BrowserOptions, AndroidOptions {
   bool progressBar;
 
   AndroidInAppBrowserOptions(
-      {this.hideTitleBar = true,
+      {this.hideTitleBar = false,
       this.toolbarTopFixedTitle = "",
       this.closeOnCannotGoBack = true,
       this.progressBar = true});
@@ -836,12 +1045,27 @@ class AndroidInAppBrowserOptions implements BrowserOptions, AndroidOptions {
   }
 
   static AndroidInAppBrowserOptions fromMap(Map<String, dynamic> map) {
-    AndroidInAppBrowserOptions options = new AndroidInAppBrowserOptions();
+    AndroidInAppBrowserOptions options = AndroidInAppBrowserOptions();
     options.hideTitleBar = map["hideTitleBar"];
     options.toolbarTopFixedTitle = map["toolbarTopFixedTitle"];
     options.closeOnCannotGoBack = map["closeOnCannotGoBack"];
     options.progressBar = map["progressBar"];
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  AndroidInAppBrowserOptions copy() {
+    return AndroidInAppBrowserOptions.fromMap(this.toMap());
   }
 }
 
@@ -896,7 +1120,7 @@ class IOSInAppBrowserOptions implements BrowserOptions, IosOptions {
   }
 
   static IOSInAppBrowserOptions fromMap(Map<String, dynamic> map) {
-    IOSInAppBrowserOptions options = new IOSInAppBrowserOptions();
+    IOSInAppBrowserOptions options = IOSInAppBrowserOptions();
     options.toolbarBottom = map["toolbarBottom"];
     options.toolbarBottomBackgroundColor = map["toolbarBottomBackgroundColor"];
     options.toolbarBottomTranslucent = map["toolbarBottomTranslucent"];
@@ -908,6 +1132,21 @@ class IOSInAppBrowserOptions implements BrowserOptions, IosOptions {
         IOSUIModalTransitionStyle.fromValue(map["transitionStyle"]);
     options.spinner = map["spinner"];
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  IOSInAppBrowserOptions copy() {
+    return IOSInAppBrowserOptions.fromMap(this.toMap());
   }
 }
 
@@ -973,6 +1212,21 @@ class AndroidChromeCustomTabsOptions
     options.keepAliveEnabled = map["keepAliveEnabled"];
     return options;
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  AndroidChromeCustomTabsOptions copy() {
+    return AndroidChromeCustomTabsOptions.fromMap(this.toMap());
+  }
 }
 
 ///This class represents all the iOS-only [ChromeSafariBrowser] options available.
@@ -1027,7 +1281,7 @@ class IOSSafariOptions implements ChromeSafariBrowserOptions, IosOptions {
   }
 
   static IOSSafariOptions fromMap(Map<String, dynamic> map) {
-    IOSSafariOptions options = new IOSSafariOptions();
+    IOSSafariOptions options = IOSSafariOptions();
     options.entersReaderIfAvailable = map["entersReaderIfAvailable"];
     options.barCollapsingEnabled = map["barCollapsingEnabled"];
     options.dismissButtonStyle =
@@ -1039,5 +1293,20 @@ class IOSSafariOptions implements ChromeSafariBrowserOptions, IosOptions {
     options.transitionStyle =
         IOSUIModalTransitionStyle.fromValue(map["transitionStyle"]);
     return options;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return this.toMap();
+  }
+
+  @override
+  String toString() {
+    return toMap().toString();
+  }
+
+  @override
+  IOSSafariOptions copy() {
+    return IOSSafariOptions.fromMap(this.toMap());
   }
 }

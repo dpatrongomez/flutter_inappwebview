@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'types.dart';
 import 'package:flutter/services.dart';
 
-///HttpAuthCredentialDatabase class implements a singleton object (shared instance) which manages the shared HTTP auth credentials cache.
+///Class that implements a singleton object (shared instance) which manages the shared HTTP auth credentials cache.
 ///On iOS, this class uses the [URLCredentialStorage](https://developer.apple.com/documentation/foundation/urlcredentialstorage) class.
-///On Android, this class has a custom implementation using `android.database.sqlite.SQLiteDatabase` because [WebViewDatabase](https://developer.android.com/reference/android/webkit/WebViewDatabase)
+///On Android, this class has a custom implementation using `android.database.sqlite.SQLiteDatabase` because
+///[WebViewDatabase](https://developer.android.com/reference/android/webkit/WebViewDatabase)
 ///doesn't offer the same functionalities as iOS `URLCredentialStorage`.
 class HttpAuthCredentialDatabase {
   static HttpAuthCredentialDatabase _instance;
@@ -21,7 +22,7 @@ class HttpAuthCredentialDatabase {
 
   static HttpAuthCredentialDatabase _init() {
     _channel.setMethodCallHandler(_handleMethod);
-    _instance = new HttpAuthCredentialDatabase();
+    _instance = HttpAuthCredentialDatabase();
     return _instance;
   }
 
@@ -30,26 +31,28 @@ class HttpAuthCredentialDatabase {
   ///Gets a map list of all HTTP auth credentials saved.
   ///Each map contains the key `protectionSpace` of type [ProtectionSpace]
   ///and the key `credentials` of type `List<HttpAuthCredential>` that contains all the HTTP auth credentials saved for that `protectionSpace`.
-  Future<List<Map<String, dynamic>>> getAllAuthCredentials() async {
+  Future<List<ProtectionSpaceHttpAuthCredentials>>
+      getAllAuthCredentials() async {
     Map<String, dynamic> args = <String, dynamic>{};
     List<dynamic> allCredentials =
         await _channel.invokeMethod('getAllAuthCredentials', args);
-    List<Map<String, dynamic>> result = [];
+
+    List<ProtectionSpaceHttpAuthCredentials> result = [];
+
     for (Map<dynamic, dynamic> map in allCredentials) {
       Map<dynamic, dynamic> protectionSpace = map["protectionSpace"];
       List<dynamic> credentials = map["credentials"];
-      result.add({
-        "protectionSpace": ProtectionSpace(
-            host: protectionSpace["host"],
-            protocol: protectionSpace["protocol"],
-            realm: protectionSpace["realm"],
-            port: protectionSpace["port"]),
-        "credentials": credentials
-            .map((credential) => HttpAuthCredential(
-                username: credential["username"],
-                password: credential["password"]))
-            .toList()
-      });
+      result.add(ProtectionSpaceHttpAuthCredentials(
+          protectionSpace: ProtectionSpace(
+              host: protectionSpace["host"],
+              protocol: protectionSpace["protocol"],
+              realm: protectionSpace["realm"],
+              port: protectionSpace["port"]),
+          credentials: credentials
+              .map((credential) => HttpAuthCredential(
+                  username: credential["username"],
+                  password: credential["password"]))
+              .toList()));
     }
     return result;
   }

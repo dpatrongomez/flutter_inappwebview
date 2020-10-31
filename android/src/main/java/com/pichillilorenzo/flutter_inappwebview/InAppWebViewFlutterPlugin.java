@@ -4,7 +4,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 import android.webkit.ValueCallback;
+
+import com.pichillilorenzo.flutter_inappwebview.InAppWebView.FlutterWebViewFactory;
 
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -12,6 +15,7 @@ import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.platform.PlatformViewRegistry;
+import io.flutter.view.FlutterMain;
 import io.flutter.view.FlutterView;
 
 public class InAppWebViewFlutterPlugin implements FlutterPlugin, ActivityAware {
@@ -19,12 +23,14 @@ public class InAppWebViewFlutterPlugin implements FlutterPlugin, ActivityAware {
   protected static final String LOG_TAG = "InAppWebViewFlutterPL";
 
   public static InAppBrowserManager inAppBrowserManager;
+  public static HeadlessInAppWebViewManager headlessInAppWebViewManager;
   public static ChromeSafariBrowserManager chromeSafariBrowserManager;
   public static InAppWebViewStatic inAppWebViewStatic;
   public static MyCookieManager myCookieManager;
   public static CredentialDatabaseHandler credentialDatabaseHandler;
   public static MyWebStorage myWebStorage;
-  public static ValueCallback<Uri[]> uploadMessageArray;
+  public static ValueCallback<Uri> filePathCallbackLegacy;
+  public static ValueCallback<Uri[]> filePathCallback;
 
   public InAppWebViewFlutterPlugin() {}
 
@@ -38,17 +44,23 @@ public class InAppWebViewFlutterPlugin implements FlutterPlugin, ActivityAware {
   @Override
   public void onAttachedToEngine(FlutterPluginBinding binding) {
     Shared.flutterAssets = binding.getFlutterAssets();
+
+    // Shared.activity could be null or not.
+    // It depends on who is called first between onAttachedToEngine event and onAttachedToActivity event.
+    //
+    // See https://github.com/pichillilorenzo/flutter_inappwebview/issues/390#issuecomment-647039084
     onAttachedToEngine(
-            binding.getApplicationContext(), binding.getBinaryMessenger(), null, binding.getPlatformViewRegistry(), null);
+            binding.getApplicationContext(), binding.getBinaryMessenger(), Shared.activity, binding.getPlatformViewRegistry(), null);
   }
 
-
   private void onAttachedToEngine(Context applicationContext, BinaryMessenger messenger, Activity activity, PlatformViewRegistry platformViewRegistry, FlutterView flutterView) {
+
     Shared.applicationContext = applicationContext;
     Shared.activity = activity;
     Shared.messenger = messenger;
 
     inAppBrowserManager = new InAppBrowserManager(messenger);
+    headlessInAppWebViewManager = new HeadlessInAppWebViewManager(messenger);
     chromeSafariBrowserManager = new ChromeSafariBrowserManager(messenger);
 
     platformViewRegistry.registerViewFactory(
@@ -66,6 +78,10 @@ public class InAppWebViewFlutterPlugin implements FlutterPlugin, ActivityAware {
     if (inAppBrowserManager != null) {
       inAppBrowserManager.dispose();
       inAppBrowserManager = null;
+    }
+    if (headlessInAppWebViewManager != null) {
+      headlessInAppWebViewManager.dispose();
+      headlessInAppWebViewManager = null;
     }
     if (chromeSafariBrowserManager != null) {
       chromeSafariBrowserManager.dispose();
@@ -87,7 +103,8 @@ public class InAppWebViewFlutterPlugin implements FlutterPlugin, ActivityAware {
       inAppWebViewStatic.dispose();
       inAppWebViewStatic = null;
     }
-    uploadMessageArray = null;
+    filePathCallbackLegacy = null;
+    filePathCallback = null;
   }
 
   @Override
